@@ -1,139 +1,304 @@
 package com.renault.garagemanager.service;
 
-import com.renault.garagemanager.dto.VehicleDTO;
-import com.renault.garagemanager.entity.Garage;
-import com.renault.garagemanager.entity.Vehicle;
-import com.renault.garagemanager.exception.BusinessException;
-import com.renault.garagemanager.exception.ResourceNotFoundException;
-import com.renault.garagemanager.kafka.VehicleProducer;
-import com.renault.garagemanager.mapper.VehicleMapper;
+import com.renault.garagemanager.dto.GarageDto;
+import com.renault.garagemanager.dto.VehicleDto;
 import com.renault.garagemanager.repository.GarageRepository;
-import com.renault.garagemanager.repository.VehicleRepository;
-import com.renault.garagemanager.service.impl.VehicleServiceImpl;
+import io.restassured.RestAssured;
+import io.restassured.http.ContentType;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.context.ActiveProfiles;
 
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
 
 /**
- * Tests unitaires du service VehicleService.
+ * Integration tests for Vehicle REST endpoints using REST Assured.
  */
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("test")
+@DisplayName("Vehicle REST API")
 class VehicleServiceTest {
 
-    @Mock
-    private VehicleRepository vehicleRepository;
+    private static final String BASE_PATH = "/api/vehicles";
 
-    @Mock
+    @LocalServerPort
+    private int port;
+
+    @Autowired
     private GarageRepository garageRepository;
 
-    @Mock
-    private VehicleMapper vehicleMapper;
-
-    @Mock
-    private VehicleProducer vehicleProducer;
-
-    @InjectMocks
-    private VehicleServiceImpl vehicleService;
-
-    private Garage garage;
-    private Vehicle vehicle;
-    private VehicleDTO vehicleDTO;
+    private int garageId;
 
     @BeforeEach
     void setUp() {
-        garage = Garage.builder().id(1L).name("Garage Test").build();
+        RestAssured.port = port;
+        RestAssured.enableLoggingOfRequestAndResponseIfValidationFails();
+        garageRepository.deleteAll();
 
-        vehicle = Vehicle.builder()
-                .id(1L)
+        garageId = given()
+                .contentType(ContentType.JSON)
+                .body(GarageDto.builder()
+                        .name("Garage Test")
+                        .address("1 rue Test")
+                        .telephone("0100000000")
+                        .email("test@renault.fr")
+                        .build())
+        .when()
+                .post("/api/garages")
+        .then()
+                .statusCode(201)
+                .extract().path("id");
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private VehicleDto buildClioDto() {
+        return VehicleDto.builder()
                 .brand("Renault")
                 .model("Clio")
-                .anneeFabrication(2023)
-                .typeCarburant("Essence")
-                .garage(garage)
+                .manufacturingYear(2023)
+                .fuelType("Petrol")
                 .build();
+    }
 
-        vehicleDTO = VehicleDTO.builder()
-                .id(1L)
+    private VehicleDto buildMeganeDto() {
+        return VehicleDto.builder()
                 .brand("Renault")
-                .model("Clio")
-                .anneeFabrication(2023)
-                .typeCarburant("Essence")
-                .garageId(1L)
+                .model("Megane")
+                .manufacturingYear(2024)
+                .fuelType("Diesel")
                 .build();
     }
 
-    @Test
-    void create_shouldReturnCreatedVehicle() {
-        when(garageRepository.findById(1L)).thenReturn(Optional.of(garage));
-        when(vehicleRepository.countByGarageId(1L)).thenReturn(0);
-        when(vehicleMapper.toEntity(any(VehicleDTO.class))).thenReturn(vehicle);
-        when(vehicleRepository.save(any(Vehicle.class))).thenReturn(vehicle);
-        when(vehicleMapper.toDTO(any(Vehicle.class))).thenReturn(vehicleDTO);
-
-        VehicleDTO result = vehicleService.create(1L, vehicleDTO);
-
-        assertThat(result.getBrand()).isEqualTo("Renault");
-        verify(vehicleProducer).sendVehicleCreatedEvent(any(VehicleDTO.class));
+    private int createVehicleAndGetId(VehicleDto dto) {
+        return given()
+                .contentType(ContentType.JSON)
+                .queryParam("garageId", garageId)
+                .body(dto)
+        .when()
+                .post(BASE_PATH)
+        .then()
+                .statusCode(201)
+                .extract().path("id");
     }
 
-    @Test
-    void create_shouldThrowException_whenGarageIsFull() {
-        when(garageRepository.findById(1L)).thenReturn(Optional.of(garage));
-        when(vehicleRepository.countByGarageId(1L)).thenReturn(50);
+    // ── CREATE ───────────────────────────────────────────────────────────────
 
-        assertThatThrownBy(() -> vehicleService.create(1L, vehicleDTO))
-                .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("50");
+    @Nested
+    @DisplayName("POST /api/vehicles")
+    class Create {
+
+        @Test
+        @DisplayName("should create vehicle and return 201")
+        void shouldReturn201() {
+            given()
+                    .contentType(ContentType.JSON)
+                    .queryParam("garageId", garageId)
+                    .body(buildClioDto())
+            .when()
+                    .post(BASE_PATH)
+            .then()
+                    .statusCode(201)
+                    .body("id", notNullValue())
+                    .body("brand", equalTo("Renault"))
+                    .body("model", equalTo("Clio"))
+                    .body("manufacturingYear", equalTo(2023))
+                    .body("fuelType", equalTo("Petrol"))
+                    .body("garageId", equalTo(garageId));
+        }
+
+        @Test
+        @DisplayName("should return 400 when garage is full (50 vehicles)")
+        void shouldReturn400_whenGarageIsFull() {
+            for (int i = 0; i < 50; i++) {
+                createVehicleAndGetId(buildClioDto());
+            }
+
+            given()
+                    .contentType(ContentType.JSON)
+                    .queryParam("garageId", garageId)
+                    .body(buildClioDto())
+            .when()
+                    .post(BASE_PATH)
+            .then()
+                    .statusCode(400)
+                    .body("message", containsString("50"));
+        }
+
+        @Test
+        @DisplayName("should return 404 when garage does not exist")
+        void shouldReturn404_whenGarageNotFound() {
+            given()
+                    .contentType(ContentType.JSON)
+                    .queryParam("garageId", 9999)
+                    .body(buildClioDto())
+            .when()
+                    .post(BASE_PATH)
+            .then()
+                    .statusCode(404)
+                    .body("message", containsString("9999"));
+        }
     }
 
-    @Test
-    void create_shouldThrowException_whenGarageNotFound() {
-        when(garageRepository.findById(99L)).thenReturn(Optional.empty());
+    // ── READ ─────────────────────────────────────────────────────────────────
 
-        assertThatThrownBy(() -> vehicleService.create(99L, vehicleDTO))
-                .isInstanceOf(ResourceNotFoundException.class);
+    @Nested
+    @DisplayName("GET /api/vehicles")
+    class Read {
+
+        @Test
+        @DisplayName("should return all vehicles")
+        void findAll_shouldReturnAll() {
+            createVehicleAndGetId(buildClioDto());
+            createVehicleAndGetId(buildMeganeDto());
+
+            given()
+            .when()
+                    .get(BASE_PATH)
+            .then()
+                    .statusCode(200)
+                    .body("$", hasSize(2));
+        }
+
+        @Test
+        @DisplayName("/{id} should return vehicle when exists")
+        void findById_shouldReturn200() {
+            int vehicleId = createVehicleAndGetId(buildClioDto());
+
+            given()
+            .when()
+                    .get(BASE_PATH + "/{id}", vehicleId)
+            .then()
+                    .statusCode(200)
+                    .body("id", equalTo(vehicleId))
+                    .body("brand", equalTo("Renault"))
+                    .body("model", equalTo("Clio"));
+        }
+
+        @Test
+        @DisplayName("/{id} should return 404 when not found")
+        void findById_shouldReturn404() {
+            given()
+            .when()
+                    .get(BASE_PATH + "/{id}", 9999)
+            .then()
+                    .statusCode(404)
+                    .body("message", containsString("9999"));
+        }
+
+        @Test
+        @DisplayName("/garage/{garageId} should return vehicles for garage")
+        void findByGarageId_shouldReturnVehicles() {
+            createVehicleAndGetId(buildClioDto());
+
+            given()
+            .when()
+                    .get(BASE_PATH + "/garage/{garageId}", garageId)
+            .then()
+                    .statusCode(200)
+                    .body("$", hasSize(1))
+                    .body("[0].brand", equalTo("Renault"));
+        }
+
+        @Test
+        @DisplayName("/search/by-model should return matching vehicles")
+        void findByModel_shouldReturnMatching() {
+            createVehicleAndGetId(buildClioDto());
+            createVehicleAndGetId(buildMeganeDto());
+
+            given()
+                    .queryParam("model", "Clio")
+            .when()
+                    .get(BASE_PATH + "/search/by-model")
+            .then()
+                    .statusCode(200)
+                    .body("$", hasSize(1))
+                    .body("[0].model", equalTo("Clio"));
+        }
     }
 
-    @Test
-    void findByGarageId_shouldReturnVehicles() {
-        when(garageRepository.existsById(1L)).thenReturn(true);
-        when(vehicleRepository.findByGarageId(1L)).thenReturn(List.of(vehicle));
-        when(vehicleMapper.toDTO(vehicle)).thenReturn(vehicleDTO);
+    // ── UPDATE ───────────────────────────────────────────────────────────────
 
-        List<VehicleDTO> result = vehicleService.findByGarageId(1L);
+    @Nested
+    @DisplayName("PUT /api/vehicles/{id}")
+    class Update {
 
-        assertThat(result).hasSize(1);
+        @Test
+        @DisplayName("should update vehicle and return 200")
+        void shouldReturn200() {
+            int vehicleId = createVehicleAndGetId(buildClioDto());
+
+            VehicleDto updated = VehicleDto.builder()
+                    .brand("Renault")
+                    .model("Clio RS")
+                    .manufacturingYear(2024)
+                    .fuelType("Petrol")
+                    .build();
+
+            given()
+                    .contentType(ContentType.JSON)
+                    .body(updated)
+            .when()
+                    .put(BASE_PATH + "/{id}", vehicleId)
+            .then()
+                    .statusCode(200)
+                    .body("model", equalTo("Clio RS"))
+                    .body("manufacturingYear", equalTo(2024));
+        }
+
+        @Test
+        @DisplayName("should return 404 when not found")
+        void shouldReturn404() {
+            given()
+                    .contentType(ContentType.JSON)
+                    .body(buildClioDto())
+            .when()
+                    .put(BASE_PATH + "/{id}", 9999)
+            .then()
+                    .statusCode(404);
+        }
     }
 
-    @Test
-    void findByModel_shouldReturnVehiclesFromMultipleGarages() {
-        when(vehicleRepository.findByModel("Clio")).thenReturn(List.of(vehicle));
-        when(vehicleMapper.toDTO(vehicle)).thenReturn(vehicleDTO);
+    // ── DELETE ────────────────────────────────────────────────────────────────
 
-        List<VehicleDTO> result = vehicleService.findByModel("Clio");
+    @Nested
+    @DisplayName("DELETE /api/vehicles/{id}")
+    class Delete {
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).getModel()).isEqualTo("Clio");
-    }
+        @Test
+        @DisplayName("should delete vehicle and return 204")
+        void shouldReturn204() {
+            int vehicleId = createVehicleAndGetId(buildClioDto());
 
-    @Test
-    void delete_shouldDeleteVehicle_whenExists() {
-        when(vehicleRepository.existsById(1L)).thenReturn(true);
+            given()
+            .when()
+                    .delete(BASE_PATH + "/{id}", vehicleId)
+            .then()
+                    .statusCode(204);
 
-        vehicleService.delete(1L);
+            // Verify it's gone
+            given()
+            .when()
+                    .get(BASE_PATH + "/{id}", vehicleId)
+            .then()
+                    .statusCode(404);
+        }
 
-        verify(vehicleRepository).deleteById(1L);
+        @Test
+        @DisplayName("should return 404 when not found")
+        void shouldReturn404() {
+            given()
+            .when()
+                    .delete(BASE_PATH + "/{id}", 9999)
+            .then()
+                    .statusCode(404)
+                    .body("message", containsString("9999"));
+        }
     }
 }
-

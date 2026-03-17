@@ -1,43 +1,64 @@
 package com.renault.garagemanager.controller;
-import com.renault.garagemanager.dto.VehicleDTO;
+
+import com.renault.garagemanager.dto.VehicleDto;
 import com.renault.garagemanager.service.VehicleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
+
 /**
- * Controleur REST pour la gestion des vehicules.
+ * REST controller for vehicle management.
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/vehicles")
 @RequiredArgsConstructor
 public class VehicleController {
+
     private final VehicleService vehicleService;
-    @PostMapping("/garages/{garageId}/vehicles")
-    public ResponseEntity<VehicleDTO> create(@PathVariable Long garageId, @Valid @RequestBody VehicleDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(vehicleService.create(garageId, dto));
+
+    @PostMapping
+    public ResponseEntity<VehicleDto> createVehicle(
+            @RequestParam Long garageId,
+            @Valid @RequestBody VehicleDto vehicleDto) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(vehicleService.createVehicle(garageId, vehicleDto));
     }
-    @GetMapping("/garages/{garageId}/vehicles")
-    public ResponseEntity<List<VehicleDTO>> findByGarage(@PathVariable Long garageId) {
-        return ResponseEntity.ok(vehicleService.findByGarageId(garageId));
+
+    @GetMapping
+    public ResponseEntity<List<VehicleDto>> findAllVehicles() {
+        return ResponseEntity.ok(vehicleService.findAllVehicles());
     }
-    @GetMapping("/vehicles/{id}")
-    public ResponseEntity<VehicleDTO> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(vehicleService.findById(id));
+
+    @GetMapping("/{id}")
+    public ResponseEntity<VehicleDto> findVehicleById(@PathVariable Long id) {
+        return ResponseEntity.ok(vehicleService.findVehicleById(id));
     }
-    @GetMapping("/vehicles/search/by-model")
-    public ResponseEntity<List<VehicleDTO>> findByModel(@RequestParam String model) {
-        return ResponseEntity.ok(vehicleService.findByModel(model));
+
+    @GetMapping("/garage/{garageId}")
+    public ResponseEntity<List<VehicleDto>> findVehiclesByGarageId(@PathVariable Long garageId) {
+        return ResponseEntity.ok(vehicleService.findVehiclesByGarageId(garageId));
     }
-    @PutMapping("/vehicles/{id}")
-    public ResponseEntity<VehicleDTO> update(@PathVariable Long id, @Valid @RequestBody VehicleDTO dto) {
-        return ResponseEntity.ok(vehicleService.update(id, dto));
+
+    @GetMapping("/search/by-model")
+    public ResponseEntity<List<VehicleDto>> findVehiclesByModel(@RequestParam String model) {
+        return ResponseEntity.ok(vehicleService.findVehiclesByModel(model));
     }
-    @DeleteMapping("/vehicles/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        vehicleService.delete(id);
+
+    @PutMapping("/{id}")
+    public ResponseEntity<VehicleDto> updateVehicle(
+            @PathVariable Long id,
+            @Valid @RequestBody VehicleDto vehicleDto) {
+        return ResponseEntity.ok(vehicleService.updateVehicle(id, vehicleDto));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteVehicle(@PathVariable Long id) {
+        vehicleService.deleteVehicle(id);
         return ResponseEntity.noContent().build();
     }
 }
+

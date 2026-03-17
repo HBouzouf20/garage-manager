@@ -1,8 +1,10 @@
 package com.renault.garagemanager.entity;
+
 import jakarta.persistence.*;
 import lombok.*;
+
 /**
- * Represente un accessoire associe a un vehicule.
+ * JPA entity representing an accessory attached to a vehicle.
  */
 @Entity
 @Table(name = "accessories")
@@ -11,18 +13,24 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Accessory {
+public class AccessoryEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @Column(nullable = false)
-    private String nom;
+    private String name;
+
     private String description;
+
     @Column(nullable = false)
-    private double prix;
+    private double price;
+
     @Column(nullable = false)
     private String type;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vehicle_id", nullable = false)
-    private Vehicle vehicle;
+    private VehicleEntity vehicle;
 }

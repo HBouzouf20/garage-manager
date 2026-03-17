@@ -1,35 +1,24 @@
 package com.renault.garagemanager.mapper;
-import com.renault.garagemanager.dto.AccessoryDTO;
-import com.renault.garagemanager.entity.Accessory;
-import org.springframework.stereotype.Component;
+
+import com.renault.garagemanager.dto.AccessoryDto;
+import com.renault.garagemanager.entity.AccessoryEntity;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
 /**
- * Mapper bidirectionnel entre l'entite Accessory et son DTO.
+ * MapStruct mapper between AccessoryEntity and AccessoryDTO.
  */
-@Component
-public class AccessoryMapper {
-    public AccessoryDTO toDTO(Accessory accessory) {
-        return AccessoryDTO.builder()
-                .id(accessory.getId())
-                .nom(accessory.getNom())
-                .description(accessory.getDescription())
-                .prix(accessory.getPrix())
-                .type(accessory.getType())
-                .vehicleId(accessory.getVehicle().getId())
-                .build();
-    }
-    public Accessory toEntity(AccessoryDTO dto) {
-        return Accessory.builder()
-                .id(dto.getId())
-                .nom(dto.getNom())
-                .description(dto.getDescription())
-                .prix(dto.getPrix())
-                .type(dto.getType())
-                .build();
-    }
-    public void updateEntity(Accessory accessory, AccessoryDTO dto) {
-        accessory.setNom(dto.getNom());
-        accessory.setDescription(dto.getDescription());
-        accessory.setPrix(dto.getPrix());
-        accessory.setType(dto.getType());
-    }
+@Mapper(componentModel = "spring")
+public interface AccessoryMapper {
+
+    @Mapping(source = "vehicle.id", target = "vehicleId")
+    AccessoryDto toDTO(AccessoryEntity accessory);
+
+    @Mapping(target = "vehicle", ignore = true)
+    AccessoryEntity toEntity(AccessoryDto dto);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "vehicle", ignore = true)
+    void updateEntity(@MappingTarget AccessoryEntity accessory, AccessoryDto dto);
 }

@@ -1,6 +1,6 @@
 package com.renault.garagemanager.exception;
 /**
- * Exception levee lorsqu'une contrainte metier est violee.
+ * Thrown when a business rule or constraint is violated.
  */
 public class BusinessException extends RuntimeException {
     public BusinessException(String message) {

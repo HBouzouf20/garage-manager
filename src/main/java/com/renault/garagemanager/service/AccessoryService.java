@@ -1,22 +1,24 @@
 package com.renault.garagemanager.service;
 
-import com.renault.garagemanager.dto.AccessoryDTO;
+import com.renault.garagemanager.dto.AccessoryDto;
 
 import java.util.List;
 
 /**
- * Contrat de service pour la gestion des accessoires.
+ * Service contract for accessory management.
  */
 public interface AccessoryService {
 
-    AccessoryDTO create(Long vehicleId, AccessoryDTO dto);
+    AccessoryDto createAccessory(Long vehicleId, AccessoryDto accessoryDto);
 
-    List<AccessoryDTO> findByVehicleId(Long vehicleId);
+    List<AccessoryDto> findAccessoriesByVehicleId(Long vehicleId);
 
-    AccessoryDTO findById(Long id);
+    List<AccessoryDto> findAllAccessories();
 
-    AccessoryDTO update(Long id, AccessoryDTO dto);
+    AccessoryDto findAccessoryById(Long id);
 
-    void delete(Long id);
+    AccessoryDto updateAccessory(Long id, AccessoryDto accessoryDto);
+
+    void deleteAccessory(Long id);
 }
 

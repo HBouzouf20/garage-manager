@@ -1,6 +1,6 @@
 package com.renault.garagemanager.exception;
 /**
- * Exception levee lorsqu'une ressource demandee n'existe pas.
+ * Thrown when a requested resource does not exist.
  */
 public class ResourceNotFoundException extends RuntimeException {
     public ResourceNotFoundException(String message) {

@@ -1,24 +1,26 @@
 package com.renault.garagemanager.service;
 
-import com.renault.garagemanager.dto.VehicleDTO;
+import com.renault.garagemanager.dto.VehicleDto;
 
 import java.util.List;
 
 /**
- * Contrat de service pour la gestion des vehicules.
+ * Service contract for vehicle management.
  */
 public interface VehicleService {
 
-    VehicleDTO create(Long garageId, VehicleDTO dto);
+    VehicleDto createVehicle(Long garageId, VehicleDto vehicleDto);
 
-    List<VehicleDTO> findByGarageId(Long garageId);
+    List<VehicleDto> findVehiclesByGarageId(Long garageId);
 
-    List<VehicleDTO> findByModel(String model);
+    List<VehicleDto> findAllVehicles();
 
-    VehicleDTO findById(Long id);
+    List<VehicleDto> findVehiclesByModel(String model);
 
-    VehicleDTO update(Long id, VehicleDTO dto);
+    VehicleDto findVehicleById(Long id);
 
-    void delete(Long id);
+    VehicleDto updateVehicle(Long id, VehicleDto vehicleDto);
+
+    void deleteVehicle(Long id);
 }
 

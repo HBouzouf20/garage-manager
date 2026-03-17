@@ -1,10 +1,19 @@
 package com.renault.garagemanager.repository;
-import com.renault.garagemanager.entity.Accessory;
+
+import com.renault.garagemanager.entity.AccessoryEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
+
 /**
- * Repository JPA pour les operations CRUD sur les accessoires.
+ * JPA repository for CRUD operations on accessories.
  */
-public interface AccessoryRepository extends JpaRepository<Accessory, Long> {
-    List<Accessory> findByVehicleId(Long vehicleId);
+public interface AccessoryRepository extends JpaRepository<AccessoryEntity, Long> {
+
+    /**
+     * Returns all accessories attached to the given vehicle.
+     *
+     * @param vehicleId the vehicle id
+     * @return list of accessories for that vehicle
+     */
+    List<AccessoryEntity> findByVehicleId(Long vehicleId);
 }

@@ -1,8 +1,8 @@
 package com.renault.garagemanager.service.impl;
 
-import com.renault.garagemanager.dto.AccessoryDTO;
-import com.renault.garagemanager.entity.Accessory;
-import com.renault.garagemanager.entity.Vehicle;
+import com.renault.garagemanager.dto.AccessoryDto;
+import com.renault.garagemanager.entity.AccessoryEntity;
+import com.renault.garagemanager.entity.VehicleEntity;
 import com.renault.garagemanager.exception.ResourceNotFoundException;
 import com.renault.garagemanager.mapper.AccessoryMapper;
 import com.renault.garagemanager.repository.AccessoryRepository;
@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 /**
- * Implementation du service metier pour la gestion des accessoires.
+ * Service implementation for accessory management.
  */
 @Service
 @RequiredArgsConstructor
@@ -27,19 +27,19 @@ public class AccessoryServiceImpl implements AccessoryService {
     private final AccessoryMapper accessoryMapper;
 
     @Override
-    public AccessoryDTO create(Long vehicleId, AccessoryDTO dto) {
-        Vehicle vehicle = vehicleRepository.findById(vehicleId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vehicule non trouve avec l'id : " + vehicleId));
-        Accessory accessory = accessoryMapper.toEntity(dto);
-        accessory.setVehicle(vehicle);
-        return accessoryMapper.toDTO(accessoryRepository.save(accessory));
+    public AccessoryDto createAccessory(Long vehicleId, AccessoryDto accessoryDto) {
+        VehicleEntity vehicle = vehicleRepository.findById(vehicleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with id: " + vehicleId));
+        AccessoryEntity accessoryEntity = accessoryMapper.toEntity(accessoryDto);
+        accessoryEntity.setVehicle(vehicle);
+        return accessoryMapper.toDTO(accessoryRepository.save(accessoryEntity));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<AccessoryDTO> findByVehicleId(Long vehicleId) {
+    public List<AccessoryDto> findAccessoriesByVehicleId(Long vehicleId) {
         if (!vehicleRepository.existsById(vehicleId)) {
-            throw new ResourceNotFoundException("Vehicule non trouve avec l'id : " + vehicleId);
+            throw new ResourceNotFoundException("Vehicle not found with id: " + vehicleId);
         }
         return accessoryRepository.findByVehicleId(vehicleId).stream()
                 .map(accessoryMapper::toDTO)
@@ -48,26 +48,33 @@ public class AccessoryServiceImpl implements AccessoryService {
 
     @Override
     @Transactional(readOnly = true)
-    public AccessoryDTO findById(Long id) {
-        Accessory accessory = accessoryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Accessoire non trouve avec l'id : " + id));
-        return accessoryMapper.toDTO(accessory);
+    public List<AccessoryDto> findAllAccessories() {
+        return accessoryRepository.findAll().stream()
+                .map(accessoryMapper::toDTO)
+                .toList();
     }
 
     @Override
-    public AccessoryDTO update(Long id, AccessoryDTO dto) {
-        Accessory accessory = accessoryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Accessoire non trouve avec l'id : " + id));
-        accessoryMapper.updateEntity(accessory, dto);
-        return accessoryMapper.toDTO(accessoryRepository.save(accessory));
+    @Transactional(readOnly = true)
+    public AccessoryDto findAccessoryById(Long id) {
+        return accessoryRepository.findById(id)
+                .map(accessoryMapper::toDTO)
+                .orElseThrow(() -> new ResourceNotFoundException("Accessory not found with id: " + id));
     }
 
     @Override
-    public void delete(Long id) {
-        if (!accessoryRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Accessoire non trouve avec l'id : " + id);
-        }
-        accessoryRepository.deleteById(id);
+    public AccessoryDto updateAccessory(Long id, AccessoryDto accessoryDto) {
+        AccessoryEntity existingAccessory = accessoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Accessory not found with id: " + id));
+        accessoryMapper.updateEntity(existingAccessory, accessoryDto);
+        return accessoryMapper.toDTO(existingAccessory);
+    }
+
+    @Override
+    public void deleteAccessory(Long id) {
+        AccessoryEntity existingAccessory = accessoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Accessory not found with id: " + id));
+        accessoryRepository.delete(existingAccessory);
     }
 }
 

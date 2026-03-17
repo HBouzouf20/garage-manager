@@ -1,78 +1,89 @@
 package com.renault.garagemanager.mapper;
-import com.renault.garagemanager.dto.GarageDTO;
-import com.renault.garagemanager.dto.OpeningTimeDTO;
-import com.renault.garagemanager.entity.Garage;
-import com.renault.garagemanager.entity.OpeningHour;
-import com.renault.garagemanager.entity.OpeningTime;
-import org.springframework.stereotype.Component;
+
+import com.renault.garagemanager.dto.GarageDto;
+import com.renault.garagemanager.dto.OpeningTimeDto;
+import com.renault.garagemanager.entity.GarageEntity;
+import com.renault.garagemanager.entity.OpeningHourEntity;
+import com.renault.garagemanager.entity.OpeningTimeEntity;
+import org.mapstruct.AfterMapping;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+
 import java.time.DayOfWeek;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+
 /**
- * Mapper bidirectionnel entre l'entite Garage et son DTO.
+ * MapStruct mapper between GarageEntity and GarageDto.
  */
-@Component
-public class GarageMapper {
-    public GarageDTO toDTO(Garage garage) {
-        Map<DayOfWeek, List<OpeningTimeDTO>> horaires = new HashMap<>();
-        if (garage.getHorairesOuverture() != null) {
-            horaires = garage.getHorairesOuverture().stream()
+@Mapper(componentModel = "spring")
+public interface GarageMapper {
+
+    default GarageDto toDTO(GarageEntity garage) {
+        if (garage == null) return null;
+
+        Map<DayOfWeek, List<OpeningTimeDto>> hours = null;
+        if (garage.getOpeningHours() != null) {
+            hours = garage.getOpeningHours().stream()
                     .collect(Collectors.groupingBy(
-                            OpeningHour::getDayOfWeek,
+                            OpeningHourEntity::getDayOfWeek,
                             Collectors.mapping(
-                                    oh -> OpeningTimeDTO.builder()
-                                            .startTime(oh.getOpeningTime().getStartTime())
-                                            .endTime(oh.getOpeningTime().getEndTime())
-                                            .build(),
+                                    oh -> new OpeningTimeDto(
+                                            oh.getOpeningTime().getStartTime(),
+                                            oh.getOpeningTime().getEndTime()),
                                     Collectors.toList()
                             )
                     ));
         }
-        return GarageDTO.builder()
-                .id(garage.getId())
-                .name(garage.getName())
-                .address(garage.getAddress())
-                .telephone(garage.getTelephone())
-                .email(garage.getEmail())
-                .horairesOuverture(horaires)
-                .build();
+
+        return new GarageDto(
+                garage.getId(),
+                garage.getName(),
+                garage.getAddress(),
+                garage.getTelephone(),
+                garage.getEmail(),
+                hours
+        );
     }
-    public Garage toEntity(GarageDTO dto) {
-        Garage garage = Garage.builder()
-                .id(dto.getId())
-                .name(dto.getName())
-                .address(dto.getAddress())
-                .telephone(dto.getTelephone())
-                .email(dto.getEmail())
-                .build();
-        if (dto.getHorairesOuverture() != null) {
-            List<OpeningHour> hours = toOpeningHours(dto.getHorairesOuverture(), garage);
-            garage.setHorairesOuverture(hours);
-        }
-        return garage;
+
+    @Mapping(target = "openingHours", ignore = true)
+    @Mapping(target = "vehicles", ignore = true)
+    GarageEntity toEntity(GarageDto dto);
+
+    @AfterMapping
+    default void mapOpeningHoursToEntity(GarageDto dto, @MappingTarget GarageEntity garage) {
+        if (dto.openingHours() == null) return;
+        garage.setOpeningHours(toOpeningHours(dto.openingHours(), garage));
     }
-    public void updateEntity(Garage garage, GarageDTO dto) {
-        garage.setName(dto.getName());
-        garage.setAddress(dto.getAddress());
-        garage.setTelephone(dto.getTelephone());
-        garage.setEmail(dto.getEmail());
-        if (dto.getHorairesOuverture() != null) {
-            garage.getHorairesOuverture().clear();
-            garage.getHorairesOuverture().addAll(toOpeningHours(dto.getHorairesOuverture(), garage));
-        }
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "openingHours", ignore = true)
+    @Mapping(target = "vehicles", ignore = true)
+    void updateEntity(@MappingTarget GarageEntity garage, GarageDto dto);
+
+    @AfterMapping
+    default void updateOpeningHours(GarageDto dto, @MappingTarget GarageEntity garage) {
+        if (dto.openingHours() == null) return;
+        garage.getOpeningHours().clear();
+        garage.getOpeningHours().addAll(toOpeningHours(dto.openingHours(), garage));
     }
-    private List<OpeningHour> toOpeningHours(Map<DayOfWeek, List<OpeningTimeDTO>> map, Garage garage) {
-        List<OpeningHour> hours = new ArrayList<>();
-        map.forEach((day, times) ->
-                times.forEach(t -> hours.add(OpeningHour.builder()
+
+    default List<OpeningHourEntity> toOpeningHours(Map<DayOfWeek, List<OpeningTimeDto>> map, GarageEntity garage) {
+        List<OpeningHourEntity> hours = new ArrayList<>();
+        map.forEach((day, times) -> times.forEach(t -> hours.add(
+                OpeningHourEntity.builder()
                         .dayOfWeek(day)
-                        .openingTime(OpeningTime.builder()
-                                .startTime(t.getStartTime())
-                                .endTime(t.getEndTime())
+                        .openingTime(OpeningTimeEntity.builder()
+                                .startTime(t.startTime())
+                                .endTime(t.endTime())
                                 .build())
                         .garage(garage)
-                        .build()))
-        );
+                        .build()
+        )));
         return hours;
     }
 }
+

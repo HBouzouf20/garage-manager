@@ -1,28 +1,28 @@
 package com.renault.garagemanager.service;
 
-import com.renault.garagemanager.dto.GarageDTO;
+import com.renault.garagemanager.dto.GarageDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
 /**
- * Contrat de service pour la gestion des garages.
+ * Service contract for garage management.
  */
 public interface GarageService {
 
-    GarageDTO create(GarageDTO dto);
+    GarageDto createGarage(GarageDto garageDto);
 
-    GarageDTO findById(Long id);
+    GarageDto findGarageById(Long id);
 
-    Page<GarageDTO> findAll(Pageable pageable);
+    Page<GarageDto> findAllGarages(Pageable pageable);
 
-    GarageDTO update(Long id, GarageDTO dto);
+    GarageDto updateGarage(Long id, GarageDto garageDto);
 
-    void delete(Long id);
+    void deleteGarage(Long id);
 
-    List<GarageDTO> findByVehicleType(String typeCarburant);
+    List<GarageDto> findGaragesByVehicleType(String fuelType);
 
-    List<GarageDTO> findByAccessoryName(String accessoryName);
+    List<GarageDto> findGaragesByAccessoryName(String accessoryName);
 }
 

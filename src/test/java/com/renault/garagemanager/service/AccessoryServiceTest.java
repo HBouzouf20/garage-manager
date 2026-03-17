@@ -1,119 +1,246 @@
 package com.renault.garagemanager.service;
 
-import com.renault.garagemanager.dto.AccessoryDTO;
-import com.renault.garagemanager.entity.Accessory;
-import com.renault.garagemanager.entity.Vehicle;
-import com.renault.garagemanager.exception.ResourceNotFoundException;
-import com.renault.garagemanager.mapper.AccessoryMapper;
-import com.renault.garagemanager.repository.AccessoryRepository;
-import com.renault.garagemanager.repository.VehicleRepository;
-import com.renault.garagemanager.service.impl.AccessoryServiceImpl;
+import com.renault.garagemanager.dto.AccessoryDto;
+import com.renault.garagemanager.dto.GarageDto;
+import com.renault.garagemanager.dto.VehicleDto;
+import com.renault.garagemanager.repository.GarageRepository;
+import io.restassured.RestAssured;
+import io.restassured.http.ContentType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.context.ActiveProfiles;
 
-import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
 
 /**
- * Tests unitaires du service AccessoryService.
+ * Integration tests for AccessoryController using REST Assured.
  */
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("test")
 class AccessoryServiceTest {
 
-    @Mock
-    private AccessoryRepository accessoryRepository;
+    @LocalServerPort
+    private int port;
 
-    @Mock
-    private VehicleRepository vehicleRepository;
+    @Autowired
+    private GarageRepository garageRepository;
 
-    @Mock
-    private AccessoryMapper accessoryMapper;
-
-    @InjectMocks
-    private AccessoryServiceImpl accessoryService;
-
-    private Vehicle vehicle;
-    private Accessory accessory;
-    private AccessoryDTO accessoryDTO;
+    private int vehicleId;
 
     @BeforeEach
     void setUp() {
-        vehicle = Vehicle.builder().id(1L).brand("Renault").model("Clio").build();
+        RestAssured.port = port;
+        garageRepository.deleteAll();
 
-        accessory = Accessory.builder()
-                .id(1L)
-                .nom("GPS")
-                .description("Systeme de navigation")
-                .prix(299.99)
-                .type("Electronique")
-                .vehicle(vehicle)
-                .build();
+        // Create a garage first
+        int garageId = given()
+                .contentType(ContentType.JSON)
+                .body(GarageDto.builder()
+                        .name("Garage Test")
+                        .address("1 rue Test")
+                        .telephone("0100000000")
+                        .email("test@renault.fr")
+                        .build())
+                .when()
+                .post("/api/garages")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
 
-        accessoryDTO = AccessoryDTO.builder()
-                .id(1L)
-                .nom("GPS")
-                .description("Systeme de navigation")
-                .prix(299.99)
-                .type("Electronique")
-                .vehicleId(1L)
-                .build();
+        // Create a vehicle in that garage
+        vehicleId = given()
+                .contentType(ContentType.JSON)
+                .queryParam("garageId", garageId)
+                .body(VehicleDto.builder()
+                        .brand("Renault")
+                        .model("Clio")
+                        .manufacturingYear(2023)
+                        .fuelType("Petrol")
+                        .build())
+                .when()
+                .post("/api/vehicles")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
     }
 
     @Test
-    void create_shouldReturnCreatedAccessory() {
-        when(vehicleRepository.findById(1L)).thenReturn(Optional.of(vehicle));
-        when(accessoryMapper.toEntity(any(AccessoryDTO.class))).thenReturn(accessory);
-        when(accessoryRepository.save(any(Accessory.class))).thenReturn(accessory);
-        when(accessoryMapper.toDTO(any(Accessory.class))).thenReturn(accessoryDTO);
-
-        AccessoryDTO result = accessoryService.create(1L, accessoryDTO);
-
-        assertThat(result.getNom()).isEqualTo("GPS");
+    void addAccessoryToVehicle_shouldReturn201() {
+        given()
+                .contentType(ContentType.JSON)
+                .queryParam("vehicleId", vehicleId)
+                .body(AccessoryDto.builder()
+                        .name("GPS")
+                        .description("Navigation system")
+                        .price(299.99)
+                        .type("Electronics")
+                        .build())
+                .when()
+                .post("/api/accessories")
+                .then()
+                .statusCode(201)
+                .body("name", equalTo("GPS"))
+                .body("price", equalTo(299.99F))
+                .body("type", equalTo("Electronics"))
+                .body("id", notNullValue());
     }
 
     @Test
-    void create_shouldThrowException_whenVehicleNotFound() {
-        when(vehicleRepository.findById(99L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> accessoryService.create(99L, accessoryDTO))
-                .isInstanceOf(ResourceNotFoundException.class);
+    void addAccessoryToVehicle_shouldReturn400_whenNameIsBlank() {
+        given()
+                .contentType(ContentType.JSON)
+                .queryParam("vehicleId", vehicleId)
+                .body(AccessoryDto.builder()
+                        .name("")
+                        .price(99.99)
+                        .type("Electronics")
+                        .build())
+                .when()
+                .post("/api/accessories")
+                .then()
+                .statusCode(400);
     }
 
     @Test
-    void findByVehicleId_shouldReturnAccessories() {
-        when(vehicleRepository.existsById(1L)).thenReturn(true);
-        when(accessoryRepository.findByVehicleId(1L)).thenReturn(List.of(accessory));
-        when(accessoryMapper.toDTO(accessory)).thenReturn(accessoryDTO);
+    void findAccessoriesByVehicleId_shouldReturn200WithList() {
+        // Create an accessory first
+        given()
+                .contentType(ContentType.JSON)
+                .queryParam("vehicleId", vehicleId)
+                .body(AccessoryDto.builder()
+                        .name("GPS")
+                        .description("Navigation system")
+                        .price(299.99)
+                        .type("Electronics")
+                        .build())
+                .when()
+                .post("/api/accessories")
+                .then()
+                .statusCode(201);
 
-        List<AccessoryDTO> result = accessoryService.findByVehicleId(1L);
-
-        assertThat(result).hasSize(1);
+        given()
+                .when()
+                .get("/api/accessories/vehicle/{vehicleId}", vehicleId)
+                .then()
+                .statusCode(200)
+                .body("$", hasSize(1))
+                .body("[0].name", equalTo("GPS"));
     }
 
     @Test
-    void delete_shouldDeleteAccessory_whenExists() {
-        when(accessoryRepository.existsById(1L)).thenReturn(true);
+    void findAccessoryById_shouldReturn200() {
+        // Create an accessory first
+        int accessoryId = given()
+                .contentType(ContentType.JSON)
+                .queryParam("vehicleId", vehicleId)
+                .body(AccessoryDto.builder()
+                        .name("GPS")
+                        .description("Navigation system")
+                        .price(299.99)
+                        .type("Electronics")
+                        .build())
+                .when()
+                .post("/api/accessories")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
 
-        accessoryService.delete(1L);
-
-        verify(accessoryRepository).deleteById(1L);
+        given()
+                .when()
+                .get("/api/accessories/{id}", accessoryId)
+                .then()
+                .statusCode(200)
+                .body("id", equalTo(accessoryId))
+                .body("name", equalTo("GPS"));
     }
 
     @Test
-    void delete_shouldThrowException_whenNotExists() {
-        when(accessoryRepository.existsById(99L)).thenReturn(false);
+    void findAccessoryById_shouldReturn404_whenNotFound() {
+        given()
+                .when()
+                .get("/api/accessories/{id}", 9999)
+                .then()
+                .statusCode(404)
+                .body("message", containsString("9999"));
+    }
 
-        assertThatThrownBy(() -> accessoryService.delete(99L))
-                .isInstanceOf(ResourceNotFoundException.class);
+    @Test
+    void updateAccessory_shouldReturn200() {
+        // Create an accessory first
+        int accessoryId = given()
+                .contentType(ContentType.JSON)
+                .queryParam("vehicleId", vehicleId)
+                .body(AccessoryDto.builder()
+                        .name("GPS")
+                        .description("Navigation system")
+                        .price(299.99)
+                        .type("Electronics")
+                        .build())
+                .when()
+                .post("/api/accessories")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(AccessoryDto.builder()
+                        .name("GPS Pro")
+                        .description("Advanced navigation")
+                        .price(399.99)
+                        .type("Electronics")
+                        .build())
+                .when()
+                .put("/api/accessories/{id}", accessoryId)
+                .then()
+                .statusCode(200)
+                .body("name", equalTo("GPS Pro"))
+                .body("price", equalTo(399.99F));
+    }
+
+    @Test
+    void deleteAccessory_shouldReturn204() {
+        // Create an accessory first
+        int accessoryId = given()
+                .contentType(ContentType.JSON)
+                .queryParam("vehicleId", vehicleId)
+                .body(AccessoryDto.builder()
+                        .name("GPS")
+                        .description("Navigation system")
+                        .price(299.99)
+                        .type("Electronics")
+                        .build())
+                .when()
+                .post("/api/accessories")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
+        given()
+                .when()
+                .delete("/api/accessories/{id}", accessoryId)
+                .then()
+                .statusCode(204);
+
+        // Verify it's gone
+        given()
+                .when()
+                .get("/api/accessories/{id}", accessoryId)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void deleteAccessory_shouldReturn404_whenNotFound() {
+        given()
+                .when()
+                .delete("/api/accessories/{id}", 9999)
+                .then()
+                .statusCode(404)
+                .body("message", containsString("9999"));
     }
 }
-
