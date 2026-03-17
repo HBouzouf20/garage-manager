@@ -17,7 +17,8 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
 /**
- * Integration tests for Garage REST endpoints using REST Assured.
+ * REST Assured integration tests for the Garage API ({@code /api/garages}).
+ * Runs a full Spring Boot context on a random port against an in-memory H2 database.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -40,8 +41,6 @@ class GarageServiceTest {
         garageRepository.deleteAll();
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
     private GarageDto buildParisGarage() {
         return GarageDto.builder()
                 .name("Garage Renault Paris")
@@ -55,14 +54,12 @@ class GarageServiceTest {
         return given()
                 .contentType(ContentType.JSON)
                 .body(dto)
-        .when()
+                .when()
                 .post()
                 .then()
                 .statusCode(201)
                 .extract().path("id");
     }
-
-    // ── CREATE ───────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("POST /api/garages")
@@ -74,9 +71,9 @@ class GarageServiceTest {
             given()
                     .contentType(ContentType.JSON)
                     .body(buildParisGarage())
-            .when()
+                    .when()
                     .post()
-            .then()
+                    .then()
                     .statusCode(201)
                     .body("id", notNullValue())
                     .body("name", equalTo("Garage Renault Paris"))
@@ -97,14 +94,12 @@ class GarageServiceTest {
             given()
                     .contentType(ContentType.JSON)
                     .body(invalid)
-            .when()
+                    .when()
                     .post()
-            .then()
+                    .then()
                     .statusCode(400);
         }
     }
-
-    // ── READ ─────────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("GET /api/garages")
@@ -116,9 +111,9 @@ class GarageServiceTest {
             createGarageAndGetId(buildParisGarage());
 
             given()
-            .when()
+                    .when()
                     .get()
-            .then()
+                    .then()
                     .statusCode(200)
                     .body("totalElements", equalTo(1))
                     .body("content[0].name", equalTo("Garage Renault Paris"));
@@ -130,9 +125,9 @@ class GarageServiceTest {
             int id = createGarageAndGetId(buildParisGarage());
 
             given()
-            .when()
+                    .when()
                     .get("/{id}", id)
-            .then()
+                    .then()
                     .statusCode(200)
                     .body("id", equalTo(id))
                     .body("name", equalTo("Garage Renault Paris"));
@@ -142,15 +137,13 @@ class GarageServiceTest {
         @DisplayName("/{id} should return 404 when not found")
         void findById_shouldReturn404() {
             given()
-            .when()
+                    .when()
                     .get("/{id}", 9999)
-            .then()
+                    .then()
                     .statusCode(404)
                     .body("message", containsString("9999"));
         }
     }
-
-    // ── UPDATE ───────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("PUT /api/garages/{id}")
@@ -171,9 +164,9 @@ class GarageServiceTest {
             given()
                     .contentType(ContentType.JSON)
                     .body(updated)
-            .when()
+                    .when()
                     .put("/{id}", id)
-            .then()
+                    .then()
                     .statusCode(200)
                     .body("name", equalTo("Garage Renault Lyon"))
                     .body("address", equalTo("5 place Bellecour, Lyon"));
@@ -185,14 +178,12 @@ class GarageServiceTest {
             given()
                     .contentType(ContentType.JSON)
                     .body(buildParisGarage())
-            .when()
+                    .when()
                     .put("/{id}", 9999)
-            .then()
+                    .then()
                     .statusCode(404);
         }
     }
-
-    // ── DELETE ────────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("DELETE /api/garages/{id}")
@@ -204,16 +195,15 @@ class GarageServiceTest {
             int id = createGarageAndGetId(buildParisGarage());
 
             given()
-            .when()
+                    .when()
                     .delete("/{id}", id)
-            .then()
+                    .then()
                     .statusCode(204);
 
-            // Verify it's gone
             given()
-            .when()
+                    .when()
                     .get("/{id}", id)
-            .then()
+                    .then()
                     .statusCode(404);
         }
 
@@ -221,9 +211,9 @@ class GarageServiceTest {
         @DisplayName("should return 404 when not found")
         void shouldReturn404() {
             given()
-            .when()
+                    .when()
                     .delete("/{id}", 9999)
-            .then()
+                    .then()
                     .statusCode(404)
                     .body("message", containsString("9999"));
         }

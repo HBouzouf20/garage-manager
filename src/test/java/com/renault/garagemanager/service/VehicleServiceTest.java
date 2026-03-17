@@ -18,7 +18,9 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
 
 /**
- * Integration tests for Vehicle REST endpoints using REST Assured.
+ * REST Assured integration tests for the Vehicle API ({@code /api/vehicles}).
+ * Runs a full Spring Boot context on a random port against an in-memory H2 database.
+ * A garage is created before each test to satisfy the vehicle–garage relationship.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
@@ -49,14 +51,12 @@ class VehicleServiceTest {
                         .telephone("0100000000")
                         .email("test@renault.fr")
                         .build())
-        .when()
+                .when()
                 .post("/api/garages")
-        .then()
+                .then()
                 .statusCode(201)
                 .extract().path("id");
     }
-
-    // ── Helpers ──────────────────────────────────────────────────────────────
 
     private VehicleDto buildClioDto() {
         return VehicleDto.builder()
@@ -81,14 +81,12 @@ class VehicleServiceTest {
                 .contentType(ContentType.JSON)
                 .queryParam("garageId", garageId)
                 .body(dto)
-        .when()
+                .when()
                 .post(BASE_PATH)
-        .then()
+                .then()
                 .statusCode(201)
                 .extract().path("id");
     }
-
-    // ── CREATE ───────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("POST /api/vehicles")
@@ -101,9 +99,9 @@ class VehicleServiceTest {
                     .contentType(ContentType.JSON)
                     .queryParam("garageId", garageId)
                     .body(buildClioDto())
-            .when()
+                    .when()
                     .post(BASE_PATH)
-            .then()
+                    .then()
                     .statusCode(201)
                     .body("id", notNullValue())
                     .body("brand", equalTo("Renault"))
@@ -114,7 +112,7 @@ class VehicleServiceTest {
         }
 
         @Test
-        @DisplayName("should return 400 when garage is full (50 vehicles)")
+        @DisplayName("should return 400 when garage has reached max capacity")
         void shouldReturn400_whenGarageIsFull() {
             for (int i = 0; i < 50; i++) {
                 createVehicleAndGetId(buildClioDto());
@@ -124,9 +122,9 @@ class VehicleServiceTest {
                     .contentType(ContentType.JSON)
                     .queryParam("garageId", garageId)
                     .body(buildClioDto())
-            .when()
+                    .when()
                     .post(BASE_PATH)
-            .then()
+                    .then()
                     .statusCode(400)
                     .body("message", containsString("50"));
         }
@@ -138,15 +136,13 @@ class VehicleServiceTest {
                     .contentType(ContentType.JSON)
                     .queryParam("garageId", 9999)
                     .body(buildClioDto())
-            .when()
+                    .when()
                     .post(BASE_PATH)
-            .then()
+                    .then()
                     .statusCode(404)
                     .body("message", containsString("9999"));
         }
     }
-
-    // ── READ ─────────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("GET /api/vehicles")
@@ -159,9 +155,9 @@ class VehicleServiceTest {
             createVehicleAndGetId(buildMeganeDto());
 
             given()
-            .when()
+                    .when()
                     .get(BASE_PATH)
-            .then()
+                    .then()
                     .statusCode(200)
                     .body("$", hasSize(2));
         }
@@ -172,9 +168,9 @@ class VehicleServiceTest {
             int vehicleId = createVehicleAndGetId(buildClioDto());
 
             given()
-            .when()
+                    .when()
                     .get(BASE_PATH + "/{id}", vehicleId)
-            .then()
+                    .then()
                     .statusCode(200)
                     .body("id", equalTo(vehicleId))
                     .body("brand", equalTo("Renault"))
@@ -185,22 +181,22 @@ class VehicleServiceTest {
         @DisplayName("/{id} should return 404 when not found")
         void findById_shouldReturn404() {
             given()
-            .when()
+                    .when()
                     .get(BASE_PATH + "/{id}", 9999)
-            .then()
+                    .then()
                     .statusCode(404)
                     .body("message", containsString("9999"));
         }
 
         @Test
-        @DisplayName("/garage/{garageId} should return vehicles for garage")
+        @DisplayName("/garage/{garageId} should return vehicles for the given garage")
         void findByGarageId_shouldReturnVehicles() {
             createVehicleAndGetId(buildClioDto());
 
             given()
-            .when()
+                    .when()
                     .get(BASE_PATH + "/garage/{garageId}", garageId)
-            .then()
+                    .then()
                     .statusCode(200)
                     .body("$", hasSize(1))
                     .body("[0].brand", equalTo("Renault"));
@@ -214,16 +210,14 @@ class VehicleServiceTest {
 
             given()
                     .queryParam("model", "Clio")
-            .when()
+                    .when()
                     .get(BASE_PATH + "/search/by-model")
-            .then()
+                    .then()
                     .statusCode(200)
                     .body("$", hasSize(1))
                     .body("[0].model", equalTo("Clio"));
         }
     }
-
-    // ── UPDATE ───────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("PUT /api/vehicles/{id}")
@@ -244,9 +238,9 @@ class VehicleServiceTest {
             given()
                     .contentType(ContentType.JSON)
                     .body(updated)
-            .when()
+                    .when()
                     .put(BASE_PATH + "/{id}", vehicleId)
-            .then()
+                    .then()
                     .statusCode(200)
                     .body("model", equalTo("Clio RS"))
                     .body("manufacturingYear", equalTo(2024));
@@ -258,14 +252,12 @@ class VehicleServiceTest {
             given()
                     .contentType(ContentType.JSON)
                     .body(buildClioDto())
-            .when()
+                    .when()
                     .put(BASE_PATH + "/{id}", 9999)
-            .then()
+                    .then()
                     .statusCode(404);
         }
     }
-
-    // ── DELETE ────────────────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("DELETE /api/vehicles/{id}")
@@ -277,16 +269,15 @@ class VehicleServiceTest {
             int vehicleId = createVehicleAndGetId(buildClioDto());
 
             given()
-            .when()
+                    .when()
                     .delete(BASE_PATH + "/{id}", vehicleId)
-            .then()
+                    .then()
                     .statusCode(204);
 
-            // Verify it's gone
             given()
-            .when()
+                    .when()
                     .get(BASE_PATH + "/{id}", vehicleId)
-            .then()
+                    .then()
                     .statusCode(404);
         }
 
@@ -294,9 +285,9 @@ class VehicleServiceTest {
         @DisplayName("should return 404 when not found")
         void shouldReturn404() {
             given()
-            .when()
+                    .when()
                     .delete(BASE_PATH + "/{id}", 9999)
-            .then()
+                    .then()
                     .statusCode(404)
                     .body("message", containsString("9999"));
         }

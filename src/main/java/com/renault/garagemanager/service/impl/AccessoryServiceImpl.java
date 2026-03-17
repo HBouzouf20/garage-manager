@@ -29,7 +29,7 @@ public class AccessoryServiceImpl implements AccessoryService {
     @Override
     public AccessoryDto createAccessory(Long vehicleId, AccessoryDto accessoryDto) {
         VehicleEntity vehicle = vehicleRepository.findById(vehicleId)
-                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with id: " + vehicleId));
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with id: %d".formatted(vehicleId)));
         AccessoryEntity accessoryEntity = accessoryMapper.toEntity(accessoryDto);
         accessoryEntity.setVehicle(vehicle);
         return accessoryMapper.toDTO(accessoryRepository.save(accessoryEntity));
@@ -39,7 +39,7 @@ public class AccessoryServiceImpl implements AccessoryService {
     @Transactional(readOnly = true)
     public List<AccessoryDto> findAccessoriesByVehicleId(Long vehicleId) {
         if (!vehicleRepository.existsById(vehicleId)) {
-            throw new ResourceNotFoundException("Vehicle not found with id: " + vehicleId);
+            throw new ResourceNotFoundException("Vehicle not found with id: %d".formatted(vehicleId));
         }
         return accessoryRepository.findByVehicleId(vehicleId).stream()
                 .map(accessoryMapper::toDTO)
@@ -59,13 +59,13 @@ public class AccessoryServiceImpl implements AccessoryService {
     public AccessoryDto findAccessoryById(Long id) {
         return accessoryRepository.findById(id)
                 .map(accessoryMapper::toDTO)
-                .orElseThrow(() -> new ResourceNotFoundException("Accessory not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Accessory not found with id: %d".formatted(id)));
     }
 
     @Override
     public AccessoryDto updateAccessory(Long id, AccessoryDto accessoryDto) {
         AccessoryEntity existingAccessory = accessoryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Accessory not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Accessory not found with id: %d".formatted(id)));
         accessoryMapper.updateEntity(existingAccessory, accessoryDto);
         return accessoryMapper.toDTO(existingAccessory);
     }
@@ -73,7 +73,7 @@ public class AccessoryServiceImpl implements AccessoryService {
     @Override
     public void deleteAccessory(Long id) {
         AccessoryEntity existingAccessory = accessoryRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Accessory not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Accessory not found with id: %d".formatted(id)));
         accessoryRepository.delete(existingAccessory);
     }
 }

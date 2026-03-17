@@ -35,10 +35,10 @@ public class VehicleServiceImpl implements VehicleService {
     @Override
     public VehicleDto createVehicle(Long garageId, VehicleDto vehicleDto) {
         if (vehicleRepository.countByGarageId(garageId) >= MAX_VEHICLES_PER_GARAGE) {
-            throw new BusinessException("Garage " + garageId + " has reached the maximum capacity of " + MAX_VEHICLES_PER_GARAGE + " vehicles");
+            throw new BusinessException("Garage %d has reached the maximum capacity of %d vehicles".formatted(garageId, MAX_VEHICLES_PER_GARAGE));
         }
         GarageEntity garage = garageRepository.findById(garageId)
-                .orElseThrow(() -> new ResourceNotFoundException("Garage not found with id: " + garageId));
+                .orElseThrow(() -> new ResourceNotFoundException("Garage not found with id: %d".formatted(garageId)));
         VehicleEntity vehicleEntity = vehicleMapper.toEntity(vehicleDto);
         vehicleEntity.setGarage(garage);
         VehicleDto savedVehicle = vehicleMapper.toDTO(vehicleRepository.save(vehicleEntity));
@@ -50,7 +50,7 @@ public class VehicleServiceImpl implements VehicleService {
     @Transactional(readOnly = true)
     public List<VehicleDto> findVehiclesByGarageId(Long garageId) {
         if (!garageRepository.existsById(garageId)) {
-            throw new ResourceNotFoundException("Garage not found with id: " + garageId);
+            throw new ResourceNotFoundException("Garage not found with id: %d".formatted(garageId));
         }
         return vehicleRepository.findByGarageId(garageId).stream()
                 .map(vehicleMapper::toDTO)
@@ -78,13 +78,13 @@ public class VehicleServiceImpl implements VehicleService {
     public VehicleDto findVehicleById(Long id) {
         return vehicleRepository.findById(id)
                 .map(vehicleMapper::toDTO)
-                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with id: %d".formatted(id)));
     }
 
     @Override
     public VehicleDto updateVehicle(Long id, VehicleDto vehicleDto) {
         VehicleEntity existingVehicle = vehicleRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with id: %d".formatted(id)));
         vehicleMapper.updateEntity(existingVehicle, vehicleDto);
         return vehicleMapper.toDTO(existingVehicle);
     }
@@ -92,7 +92,7 @@ public class VehicleServiceImpl implements VehicleService {
     @Override
     public void deleteVehicle(Long id) {
         VehicleEntity existingVehicle = vehicleRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Vehicle not found with id: %d".formatted(id)));
         vehicleRepository.delete(existingVehicle);
     }
 }

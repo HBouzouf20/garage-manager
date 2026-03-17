@@ -37,7 +37,7 @@ public class GarageServiceImpl implements GarageService {
     public GarageDto findGarageById(Long id) {
         return garageRepository.findById(id)
                 .map(garageMapper::toDTO)
-                .orElseThrow(() -> new ResourceNotFoundException("Garage not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Garage not found with id: %d".formatted(id)));
     }
 
     @Override
@@ -49,7 +49,7 @@ public class GarageServiceImpl implements GarageService {
     @Override
     public GarageDto updateGarage(Long id, GarageDto garageDto) {
         GarageEntity existingGarage = garageRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Garage not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Garage not found with id: %d".formatted(id)));
         garageMapper.updateEntity(existingGarage, garageDto);
         return garageMapper.toDTO(existingGarage);
     }
@@ -57,7 +57,7 @@ public class GarageServiceImpl implements GarageService {
     @Override
     public void deleteGarage(Long id) {
         GarageEntity existingGarage = garageRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Garage not found with id: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Garage not found with id: %d".formatted(id)));
         garageRepository.delete(existingGarage);
     }
 
